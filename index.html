@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condomínio • Navegação Fiel ao Layout</title>
+<style>
+  :root{
+    --bg:#060912; --panel:#0c1424; --line:#1e2b44;
+    --cyan:#00e5ff; --magenta:#ff2bd6; --lime:#9dff3c;
+    --amber:#ffb020; --red:#ff3b30; --txt:#e6f1ff; --txt-dim:#7d8fb3;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;padding:0}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+    background:var(--bg);color:var(--txt);display:flex;flex-direction:column;overflow:hidden;
+  }
+  header{
+    background:linear-gradient(90deg,#070d1c,#0d1830,#070d1c);
+    border-bottom:1px solid var(--line);padding:10px 18px;
+    display:flex;gap:18px;align-items:center;flex-wrap:wrap;z-index:20;position:relative;
+    box-shadow:0 0 30px rgba(0,229,255,.08);
+  }
+  header::after{
+    content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+    background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.7;
+  }
+  header h1{
+    font-size:14px;margin:0;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;white-space:nowrap;color:#c8e9ff;
+    text-shadow:0 0 12px rgba(0,229,255,.5);
+  }
+  header h1 span{color:var(--cyan);text-shadow:0 0 10px var(--cyan)}
+  .busca{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .busca input{
+    padding:9px 14px;border-radius:6px;border:1px solid #1e3a5f;width:210px;
+    font-size:14px;outline:none;background:#08101e;color:var(--cyan);
+    letter-spacing:1px;font-weight:600;
+  }
+  .busca input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,.18)}
+  .busca input::placeholder{color:#42597a;letter-spacing:0}
+  button{
+    padding:9px 16px;border-radius:6px;border:none;cursor:pointer;
+    font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+    background:linear-gradient(180deg,#00e5ff,#0095b8);color:#031018;
+    box-shadow:0 0 15px rgba(0,229,255,.3);transition:.15s;
+  }
+  button:hover{filter:brightness(1.15);box-shadow:0 0 22px rgba(0,229,255,.55)}
+  button:active{transform:translateY(1px)}
+  button.sec{background:linear-gradient(180deg,#2a3c58,#1b2a40);color:#c8d9f2;box-shadow:none}
+
+  #app{flex:1;display:flex;min-height:0;position:relative}
+  #mapWrap{flex:1;position:relative;min-width:0;background:#060912}
+  #mapWrap::before{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+    background:radial-gradient(circle at 50% 50%, rgba(0,229,255,.05), transparent 60%);
+  }
+  svg#mapa{width:100%;height:100%;display:block;cursor:grab;touch-action:none;position:relative;z-index:2}
+  svg#mapa.dragging{cursor:grabbing}
+  #zoomCtrl{position:absolute;right:14px;bottom:14px;display:flex;flex-direction:column;gap:6px;z-index:5}
+  #zoomCtrl button{
+    width:42px;height:42px;border-radius:8px;background:rgba(12,20,36,.9);
+    color:var(--cyan);font-size:19px;font-weight:700;border:1px solid #1e3a5f;
+    display:flex;align-items:center;justify-content:center;padding:0;
+    box-shadow:0 0 15px rgba(0,229,255,.2);
+  }
+  #zoomCtrl button:hover{background:rgba(0,229,255,.15)}
+
+  aside{
+    width:340px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--line);
+    padding:14px;overflow:auto;display:flex;flex-direction:column;gap:12px;
+  }
+  .card{
+    background:linear-gradient(160deg,#0e1729,#0a1120);
+    border:1px solid var(--line);border-radius:10px;padding:12px;position:relative;
+  }
+  .card::before,.card::after{
+    content:"";position:absolute;width:22px;height:2px;background:var(--cyan);
+    box-shadow:0 0 10px var(--cyan);
+  }
+  .card::before{top:0;left:0}
+  .card::after{bottom:0;right:0}
+  .card h2{
+    margin:0 0 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:2px;
+    color:var(--cyan);font-weight:700;
+  }
+  .status{
+    font-size:14px;font-weight:800;padding:10px;border-radius:6px;text-align:center;
+    background:#0a1424;color:var(--txt-dim);margin-bottom:10px;
+    border:1px solid #16253c;letter-spacing:1px;text-transform:uppercase;
+  }
+  .status.ok{background:rgba(157,255,60,.1);color:var(--lime);border-color:rgba(157,255,60,.4)}
+  .status.err{background:rgba(255,59,48,.12);color:#ff6b60;border-color:rgba(255,59,48,.5)}
+  .linha{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:5px 0;border-bottom:1px dashed #1b2a42}
+  .linha:last-child{border-bottom:none}
+  .linha span{color:var(--txt-dim);text-transform:uppercase;font-size:10.5px;letter-spacing:1.2px}
+  .linha b{color:var(--txt);font-weight:700}
+  .trajeto{font-size:12px;line-height:1.8;color:var(--txt-dim);word-break:break-word}
+  .trajeto .r{
+    background:rgba(0,229,255,.12);color:var(--cyan);padding:1px 7px;border-radius:4px;
+    font-weight:700;white-space:nowrap;display:inline-block;margin:2px 0;
+    border:1px solid rgba(0,229,255,.3);
+  }
+  .legenda{display:flex;flex-direction:column;gap:7px;font-size:12px}
+  .legenda div{display:flex;align-items:center;gap:10px}
+  .legenda i{width:24px;height:14px;display:inline-block;border-radius:3px;flex-shrink:0}
+  .hint{font-size:11.5px;color:var(--txt-dim);line-height:1.7}
+  .hint b{color:var(--cyan)}
+
+  @keyframes dashFlow{to{stroke-dashoffset:-200}}
+  .rota-flow{stroke-dasharray:22 14;animation:dashFlow 2s linear infinite}
+  @keyframes pulseGlow{0%,100%{opacity:.55}50%{opacity:.95}}
+  .rota-glow{animation:pulseGlow 1.6s ease-in-out infinite}
+
+  @media (max-width:900px){
+    aside{width:100%;max-height:46vh;border-left:none;border-top:1px solid var(--line)}
+    #app{flex-direction:column}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>◈ CONDOMÍNIO <span>▪</span> NAVEGAÇÃO INTERNA</h1>
+  <div class="busca">
+    <input id="campoBusca" type="text" inputmode="numeric" placeholder="Digite o número da casa..." autocomplete="off">
+    <button id="btnRota">◈ Mostrar Rota</button>
+    <button id="btnLimpar" class="sec">✕ Limpar</button>
+  </div>
+</header>
+
+<div id="app">
+  <div id="mapWrap">
+    <svg id="mapa" viewBox="0 0 3500 1900" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <pattern id="bgGrid" width="60" height="60" patternUnits="userSpaceOnUse">
+          <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#0f1a2e" stroke-width="1"/>
+        </pattern>
+        <pattern id="hazard" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="16" height="16" fill="#1a0a1e"/>
+          <line x1="0" y1="0" x2="0" y2="16" stroke="#ff2bd6" stroke-width="5" opacity="0.85"/>
+        </pattern>
+        <linearGradient id="ruaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#16233c"/>
+          <stop offset="100%" stop-color="#0b1424"/>
+        </linearGradient>
+        <linearGradient id="casaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1c2a44"/>
+          <stop offset="100%" stop-color="#0e1830"/>
+        </linearGradient>
+        <filter id="glowGreen"><feGaussianBlur stdDeviation="4"/></filter>
+        <filter id="glowMagenta"><feGaussianBlur stdDeviation="3"/></filter>
+        <filter id="glowRed"><feGaussianBlur stdDeviation="4"/></filter>
+        <filter id="glowAmber"><feGaussianBlur stdDeviation="5"/></filter>
+        <marker id="arrowRota" viewBox="0 0 10 10" refX="5" refY="5"
+                markerWidth="22" markerHeight="22" markerUnits="userSpaceOnUse"
+                orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#ffb020"/>
+        </marker>
+      </defs>
+
+      <g id="viewport">
+        <rect id="fundo" x="0" y="0" width="3500" height="1900" fill="url(#bgGrid)"/>
+        <g id="camadaRuas"></g>
+        <g id="camadaLaser"></g>
+        <g id="camadaCasas"></g>
+        <g id="camadaLabels"></g>
+        <g id="camadaPortaria"></g>
+        <g id="camadaRota"></g>
+      </g>
+    </svg>
+    <div id="zoomCtrl">
+      <button id="btnZoomIn">+</button>
+      <button id="btnZoomOut">−</button>
+      <button id="btnZoomReset" style="font-size:14px">⟲</button>
+    </div>
+  </div>
+
+  <aside>
+    <div class="card">
+      <h2>◈ Informações da Rota</h2>
+      <div id="status" class="status">Aguardando destino...</div>
+      <div id="detalhes">
+        <div class="linha"><span>Origem</span><b>PORTARIA</b></div>
+        <div class="linha"><span>Destino</span><b>—</b></div>
+        <div class="linha"><span>Comprimento</span><b>—</b></div>
+        <div class="linha"><span>Status</span><b>—</b></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>◈ Trajeto</h2>
+      <div id="trajeto" class="trajeto">Nenhuma rota calculada.</div>
+    </div>
+    <div class="card">
+      <h2>◈ Legenda</h2>
+      <div class="legenda">
+        <div><i style="background:#1c2a44;border:1.5px solid #00e5ff"></i> Casa</div>
+        <div><i style="background:linear-gradient(180deg,#16233c,#0b1424);border:1px solid #1e3a5f"></i> Rua</div>
+        <div><i style="background:#ffb020;border:1.5px solid #fff3c8"></i> Casa selecionada</div>
+        <div><i style="background:#22c55e;border-radius:50%;width:14px;height:14px"></i> Portaria / Saída / Entrada</div>
+        <div><i style="background:url(#hazard);border:1px solid #ff2bd6"></i> Área de Laser</div>
+        <div><i style="background:#ffb020;height:5px;border-radius:3px"></i> Rota</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>◈ Como usar</h2>
+      <div class="hint">
+        • Digite o número da casa e pressione <b>ENTER</b>.<br>
+        • Ou <b>clique em qualquer casa</b> no mapa.<br>
+        • Use <b>scroll</b> para zoom e <b>arraste</b> para deslocar.<br>
+        • Rota sai da <b>PORTARIA</b> e vai até o acesso da casa.
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* =========================================================================
+   1. GEOMETRIA BASE
+   Cada célula = 100 x 60 px. Grade com origem em (60, 60).
+   Linha 0 = topo, Coluna A = esquerda.
+   ========================================================================= */
+const NS = 'http://www.w3.org/2000/svg';
+const CELL_W = 100, CELL_H = 60;
+const ORIGIN_X = 60, ORIGIN_Y = 60;
+const METROS_POR_UNIDADE = 1;
+
+const COLS = ['A','B','C','D','E','F','G','H','I','J','K','L','M',
+              'N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+              'AA','AB','AC','AD','AE','AF','AG'];
+const COL_IDX = {}; COLS.forEach((c,i)=>COL_IDX[c]=i);
+
+function colX(c){ return ORIGIN_X + c*CELL_W; }
+function rowY(r){ return ORIGIN_Y + r*CELL_H; }
+
+/* =========================================================================
+   2. DADOS DO EXCEL 02.xlsx — LAYOUT FIEL
+   ========================================================================= */
+const DATA = [
+  /* 0 */ {A:"AREA DE LASER 05",L:449,M:448,N:447,O:446,P:445,Q:444,R:443,S:442,T:441,U:440,V:439,W:438,X:437,Y:436,Z:435,AA:434,AB:433,AC:432,AD:431,AE:430,AF:"RUA 04",AG:"133 A 173"},
+  /* 1 */ {L:"RUA 25"},
+  /* 2 */ {L:"RUA",M:411,N:412,O:413,P:414,Q:415,R:416,S:417,T:418,U:419,V:420,W:421,X:422,Y:423,Z:424,AA:425,AB:426,AC:427,AD:428,AE:429},
+  /* 3 */ {M:410,N:409,O:408,P:407,Q:406,R:405,S:404,T:403,U:402,V:401,W:400,X:399,Y:398,Z:397,AA:396,AB:395,AC:394,AD:393,AE:392},
+  /* 4 */ {A:"RUA 20",B:"RUA 19",S:"RUA 21",T:"RUA 24"},
+  /* 5 */ {B:351,C:352,D:353,E:354,F:355,G:356,H:357,I:358,J:359,K:360,L:361,M:362,N:363,O:364,P:365,Q:366,R:367,T:391,U:390,V:389,W:388,X:387,Y:386,Z:385,AA:384,AB:383,AC:382,AD:381,AE:380},
+  /* 6 */ {B:350,C:349,D:348,E:347,F:346,G:345,H:344,I:343,J:342,K:341,L:340,M:339,N:338,O:337,P:336,Q:335,R:334,T:368,U:369,V:370,W:371,X:372,Y:373,Z:374,AA:375,AB:376,AC:377,AD:378,AE:379},
+  /* 7 */ {A:"RUA 19",M:"RUA 12",N:"RUA 22",T:"RUA 23"},
+  /* 8 */ {A:322,B:323,C:324,D:325,E:326,F:327,G:328,H:329,I:330,J:331,K:332,L:333,N:"AREA DE LASER 04",T:298,U:299,V:300,W:301,X:302,Y:303,Z:304,AA:305,AB:306,AC:307,AD:308,AE:309},
+  /* 9 */ {A:321,B:320,C:319,D:318,E:317,F:316,G:315,H:314,I:313,J:312,K:311,L:310,T:297,U:296,V:295,W:294,X:293,Y:292,Z:291,AA:290,AB:289,AC:288,AD:287,AE:286},
+  /* 10 */ {A:"RUA 18",C:"RUA 16",N:"RUA 15"},
+  /* 11 */ {C:240,D:241,E:242,F:243,G:244,H:245,I:246,J:247,K:248,L:249,N:285,O:284,P:283,Q:282,R:281,S:280,T:279,U:278,V:277,W:276,X:275,Y:274,Z:273,AA:272,AB:271,AC:270,AD:269,AE:268},
+  /* 12 */ {C:239,D:238,E:237,F:236,G:235,H:234,I:233,J:232,K:231,L:230,N:250,O:251,P:252,Q:253,R:254,S:255,T:256,U:257,V:258,W:259,X:260,Y:261,Z:262,AA:263,AB:264,AC:265,AD:266,AE:267},
+  /* 13 */ {C:"RUA 17",N:"RUA 13"},
+  /* 14 */ {C:220,D:221,E:222,F:223,G:224,H:225,I:226,J:227,K:228,L:229,N:209,O:208,P:207,Q:206,R:205,S:204,T:203,U:202,V:201,W:200,X:199,Y:198,Z:197,AA:196,AB:195,AC:194,AD:193,AE:192},
+  /* 15 */ {C:219,D:218,E:217,F:216,G:215,H:214,I:213,J:212,K:211,L:210,N:174,O:175,P:176,Q:177,R:178,S:179,T:180,U:181,V:182,W:183,X:184,Y:185,Z:186,AA:187,AB:188,AC:189,AD:190,AE:191},
+  /* 16 */ {C:"RUA 11",S:"RUA 10",T:"RUA 09"},
+  /* 17 */ {A:"AREA DE LASER 01",H:"RUA",I:123,J:124,K:125,L:126,M:127,N:128,O:129,P:130,Q:131,R:132,T:"AREA DE LASER 02"},
+  /* 18 */ {A:"SAIDA",D:"AREA DE LASER 01"},
+  /* 19 */ {A:"PORTARIA",C:"SAIDA",I:122,J:121,K:120,L:119,M:118,N:117,O:116,P:115,Q:114,R:113},
+  /* 20 */ {A:"ENTRADA",D:"RUA 07",T:"RUA 08"},
+  /* 21 */ {A:"RUA 01",C:97,D:98,E:99,F:100,G:101,H:102,I:103,J:104,K:105,L:106,M:107,N:108,O:109,P:110,Q:111,R:112,T:80,U:79,V:78,W:77,X:76,Y:75,Z:74,AA:73,AB:72,AC:71,AD:70,AE:69},
+  /* 22 */ {C:96,D:95,E:94,F:93,G:92,H:91,I:90,J:89,K:88,L:87,M:86,N:85,O:84,P:83,Q:82,R:81,T:57,U:58,V:59,W:60,X:61,Y:62,Z:63,AA:64,AB:65,AC:66,AD:67,AE:68},
+  /* 23 */ {C:"RUA 06",T:"RUA 05",AG:"AREA DE LASER 03"},
+  /* 24 */ {C:32,D:31,E:30,F:29,G:28,H:27,I:26,J:25,K:24,L:23,M:22,N:21,O:20,P:19,Q:18,R:17,T:56,U:55,V:54,W:53,X:52,Y:51,Z:50,AA:49,AB:48,AC:47,AD:46,AE:45},
+  /* 25 */ {C:1,D:2,E:3,F:4,G:5,H:6,I:7,J:8,K:9,L:10,M:11,N:12,O:13,P:14,Q:15,R:16,T:33,U:34,V:35,W:36,X:37,Y:38,Z:39,AA:40,AB:41,AC:42,AD:43,AE:44},
+  /* 26 */ {C:"RUA 02",T:"RUA 03"}
+];
+
+
+const LASER_AREAS = [
+  // ÁREA DE LASER 05: A1:K4
+  {nome:'ÁREA DE LASER 05', c1:0, c2:10, r1:0, r2:3},
+  // ÁREA DE LASER 04: N9:R10
+  {nome:'ÁREA DE LASER 04', c1:13, c2:17, r1:8, r2:9},
+  // ÁREA DE LASER 01: A18:G18 + D19:G20 (formato em L)
+  {nome:'ÁREA DE LASER 01', c1:0, c2:6, r1:17, r2:17},
+  {nome:'ÁREA DE LASER 01', c1:3, c2:6, r1:18, r2:19},
+  // ÁREA DE LASER 02: T18:AE20
+  {nome:'ÁREA DE LASER 02', c1:19, c2:30, r1:17, r2:19},
+  // ÁREA DE LASER 03: AG24:AG27
+  {nome:'ÁREA DE LASER 03', c1:32, c2:32, r1:23, r2:26}
+];
+
+/* =========================================================================
+   3. MAPA
+   ========================================================================= */
+const mapa = { casas:[], ruas:[], areasLaser:[], portaria:null, pontosNavegacao:[], escala:1 };
+const tipoCelula = [];
+for (let r=0; r<DATA.length; r++){
+  tipoCelula[r] = new Array(COLS.length).fill('vazio');
+}
+
+/* =========================================================================
+   4. EXTRAÇÃO DE RUAS, LASER, PORTARIA, SAÍDA, ENTRADA, CASAS
+   ========================================================================= */
+function extrairElementos(){
+  const ruas = [];
+  const areasLaser = [];
+  let portaria = null;
+  const casas = [];
+
+  for (let r=0; r<DATA.length; r++){
+    const linha = DATA[r];
+    for (const col in linha){
+      const v = linha[col];
+      const c = COL_IDX[col];
+      if (c === undefined) continue;
+
+      const x = colX(c), y = rowY(r);
+
+      if (typeof v === 'number'){
+        tipoCelula[r][c] = 'casa';
+        casas.push({
+          numero: v, row: r, col: c,
+          x: x + 10, y: y + 8,
+          largura: CELL_W - 20, altura: CELL_H - 16,
+          dir: 'S'
+        });
+      }
+      else if (v === 'RUA' || v.startsWith('RUA ')){
+        tipoCelula[r][c] = 'rua';
+        ruas.push({ x, y, w: CELL_W, h: CELL_H, row:r, col:c, nome: v });
+      }
+      else if (typeof v === 'string' && /^(?:LASER|AREA DE LASER) 0[1-5]$/.test(v.trim())){
+        // As áreas reais são inseridas abaixo a partir das células mescladas da planilha.
+      }
+      else if (v === 'PORTARIA'){
+        tipoCelula[r][c] = 'portaria';
+        portaria = {
+          x, y, w: CELL_W, h: CELL_H, row:r, col:c,
+          centro: { x: x + CELL_W/2, y: y + CELL_H/2 }
+        };
+      }
+      else if (v === 'SAIDA'){
+        tipoCelula[r][c] = 'saida';
+        ruas.push({ x, y, w: CELL_W, h: CELL_H, row:r, col:c, nome:'SAÍDA', saida:true });
+      }
+      else if (v === 'ENTRADA'){
+        tipoCelula[r][c] = 'entrada';
+        ruas.push({ x, y, w: CELL_W, h: CELL_H, row:r, col:c, nome:'ENTRADA', entrada:true });
+      }
+      else if (v === '133 A 173'){
+        // Marcador — as casas 133-173 serão geradas em coluna vertical
+      }
+    }
+  }
+
+  // Marcar e desenhar as áreas de laser com as dimensões reais da planilha.
+  for (const a of LASER_AREAS){
+    for (let rr=a.r1; rr<=a.r2; rr++){
+      for (let cc=a.c1; cc<=a.c2; cc++) tipoCelula[rr][cc] = 'laser';
+    }
+    areasLaser.push({
+      x: colX(a.c1), y: rowY(a.r1),
+      w: (a.c2-a.c1+1)*CELL_W, h: (a.r2-a.r1+1)*CELL_H,
+      nome: a.nome
+    });
+  }
+
+  return { ruas, areasLaser, portaria, casas };
+}
+
+/* =========================================================================
+   5. FILEIRA 133 → 173 (vertical, à direita)
+   ========================================================================= */
+function criarFileira133a173(casas){
+  const nums = [];
+  for (let i=173; i>=133; i--) nums.push(i);
+
+  // Coluna vertical à direita (coluna AG)
+  const colAG = COL_IDX['AG'];
+  const x = colX(colAG);
+  const yStart = rowY(1);
+  const yEnd = rowY(23);
+  const slotH = (yEnd - yStart) / nums.length;
+  const houseH = slotH - 6;
+  const houseW = 72;
+
+  nums.forEach((numero, i)=>{
+    casas.push({
+      numero,
+      row: -1, col: colAG,
+      x: x + (CELL_W - houseW)/2,
+      y: yStart + i*slotH + (slotH - houseH)/2,
+      largura: houseW,
+      altura: houseH,
+      dir: 'W',
+      especial: true
+    });
+  });
+}
+
+/* =========================================================================
+   6. NAVEGAÇÃO — GRADE
+   ========================================================================= */
+function isWalkableCell(r, c){
+  if (r < 0 || r >= DATA.length || c < 0 || c >= COLS.length) return false;
+  const t = tipoCelula[r][c];
+  return t === 'rua' || t === 'portaria' || t === 'saida' || t === 'entrada' || t === 'vazio';
+}
+
+function celulaWalkableMaisProxima(r, c){
+  for (let raio=0; raio<12; raio++){
+    for (let dr=-raio; dr<=raio; dr++){
+      for (let dc=-raio; dc<=raio; dc++){
+        if (Math.abs(dr)!==raio && Math.abs(dc)!==raio) continue;
+        const nr = r+dr, nc = c+dc;
+        if (isWalkableCell(nr, nc)) return { r:nr, c:nc };
+      }
+    }
+  }
+  return null;
+}
+
+class MinHeap{
+  constructor(){ this.a = []; }
+  get size(){ return this.a.length; }
+  push(n){ this.a.push(n); this._up(this.a.length-1); }
+  pop(){
+    const a = this.a, top = a[0], last = a.pop();
+    if (a.length){ a[0] = last; this._down(0); }
+    return top;
+  }
+  _up(i){
+    const a = this.a;
+    while (i > 0){
+      const p = (i-1) >> 1;
+      if (a[p].f <= a[i].f) break;
+      const t = a[p]; a[p] = a[i]; a[i] = t; i = p;
+    }
+  }
+  _down(i){
+    const a = this.a, n = a.length;
+    for(;;){
+      let l = 2*i+1, r = l+1, m = i;
+      if (l < n && a[l].f < a[m].f) m = l;
+      if (r < n && a[r].f < a[m].f) m = r;
+      if (m === i) break;
+      const t = a[m]; a[m] = a[i]; a[i] = t; i = m;
+    }
+  }
+}
+
+function aStar(start, goal){
+  const rows = DATA.length, cols = COLS.length;
+  const key = (r,c)=> r*cols + c;
+  const sk = key(start.r, start.c), gk = key(goal.r, goal.c);
+
+  const gScore = new Float32Array(rows*cols).fill(Infinity);
+  const cameFrom = new Int32Array(rows*cols).fill(-1);
+  const closed = new Uint8Array(rows*cols);
+
+  gScore[sk] = 0;
+  const heap = new MinHeap();
+  heap.push({ r:start.r, c:start.c, f: Math.abs(start.r-goal.r)+Math.abs(start.c-goal.c) });
+
+  const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+
+  while (heap.size){
+    const cur = heap.pop();
+    const ck = key(cur.r, cur.c);
+    if (closed[ck]) continue;
+    closed[ck] = 1;
+
+    if (ck === gk){
+      const path = [];
+      let k = ck;
+      while (k !== -1){
+        const r = Math.floor(k / cols), c = k % cols;
+        path.push({ r, c });
+        k = cameFrom[k];
+      }
+      path.reverse();
+      return path;
+    }
+
+    const g = gScore[ck];
+    for (const [dr,dc] of DIRS){
+      const nr = cur.r+dr, nc = cur.c+dc;
+      if (!isWalkableCell(nr, nc)) continue;
+      const nk = key(nr, nc);
+      if (closed[nk]) continue;
+      const ng = g + 1;
+      if (ng < gScore[nk]){
+        gScore[nk] = ng;
+        cameFrom[nk] = ck;
+        heap.push({ r:nr, c:nc, f: ng + Math.abs(nr-goal.r)+Math.abs(nc-goal.c) });
+      }
+    }
+  }
+  return null;
+}
+
+/* =========================================================================
+   7. CÁLCULO DA ROTA
+   ========================================================================= */
+function calcularRota(casa){
+  const p = mapa.portaria;
+  const startCell = { r: p.row, c: p.col };
+
+  let goalCell;
+  if (casa.especial){
+    // Casa 133-173 → coluna AG, célula mais próxima
+    goalCell = celulaWalkableMaisProxima(casa.row >= 0 ? casa.row : 12, casa.col);
+  } else {
+    goalCell = celulaWalkableMaisProxima(casa.row, casa.col);
+  }
+  if (!goalCell) return null;
+
+  const cellPath = aStar(startCell, goalCell);
+  if (!cellPath || cellPath.length < 2) return null;
+
+  let pts = cellPath.map(({r,c}) => ({
+    x: colX(c) + CELL_W/2,
+    y: rowY(r) + CELL_H/2
+  }));
+
+  pts[0] = { x: p.centro.x, y: p.centro.y };
+
+  // Ponto de acesso da casa
+  const last = pts[pts.length-1];
+  const cx = casa.x + casa.largura/2;
+  const cy = casa.y + casa.altura/2;
+  const dTop = Math.abs(last.y - casa.y);
+  const dBot = Math.abs(last.y - (casa.y+casa.altura));
+  const dLeft = Math.abs(last.x - casa.x);
+  const dRight = Math.abs(last.x - (casa.x+casa.largura));
+  const minD = Math.min(dTop, dBot, dLeft, dRight);
+
+  let acesso;
+  if (minD === dTop)      acesso = { x: cx, y: casa.y - 3 };
+  else if (minD === dBot) acesso = { x: cx, y: casa.y + casa.altura + 3 };
+  else if (minD === dLeft)acesso = { x: casa.x - 3, y: cy };
+  else                    acesso = { x: casa.x + casa.largura + 3, y: cy };
+
+  pts.push(acesso);
+  return simplificar(pts);
+}
+
+function simplificar(pts){
+  if (pts.length < 3) return pts.slice();
+  const out = [pts[0]];
+  for (let i=1; i<pts.length-1; i++){
+    const a = out[out.length-1], b = pts[i], c = pts[i+1];
+    const cross = (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x);
+    if (Math.abs(cross) > 0.5) out.push(b);
+  }
+  out.push(pts[pts.length-1]);
+  return out;
+}
+
+/* =========================================================================
+   8. SVG RENDER
+   ========================================================================= */
+const svg = document.getElementById('mapa');
+const viewport = document.getElementById('viewport');
+const camadaRuas = document.getElementById('camadaRuas');
+const camadaLaser = document.getElementById('camadaLaser');
+const camadaCasas = document.getElementById('camadaCasas');
+const camadaRota = document.getElementById('camadaRota');
+const camadaPortaria = document.getElementById('camadaPortaria');
+const camadaLabels = document.getElementById('camadaLabels');
+
+function el(tag, attrs, parent){
+  const e = document.createElementNS(NS, tag);
+  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+function desenharFundo(){
+  camadaRuas.innerHTML = '';
+  for (const r of mapa.ruas){
+    let fill = 'url(#ruaGrad)';
+    let stroke = '#1e3a5f';
+    if (r.entrada){ fill = '#0f2a1a'; stroke = '#22c55e'; }
+    if (r.saida){   fill = '#2a1f0a'; stroke = '#ffb020'; }
+
+    el('rect', {
+      x: r.x + 7, y: r.y + 7, width: r.w - 14, height: r.h - 14,
+      fill, stroke, 'stroke-width': 1.2, rx: 3
+    }, camadaRuas);
+
+  }
+}
+
+function desenharAreasLaser(){
+  camadaLaser.innerHTML = '';
+  for (const a of mapa.areasLaser){
+    el('rect', {
+      x: a.x + 8, y: a.y + 8, width: a.w - 16, height: a.h - 16, rx: 4,
+      fill: 'url(#hazard)', stroke: '#ff2bd6', 'stroke-width': 2.5
+    }, camadaLaser);
+
+  }
+}
+
+let casaSelecionada = null;
+
+function desenharCasas(){
+  camadaCasas.innerHTML = '';
+  mapa.casas.forEach(casa => {
+    const g = el('g', { style:'cursor:pointer' }, camadaCasas);
+    g.dataset.numero = casa.numero;
+
+    const rect = el('rect', {
+      x: casa.x, y: casa.y,
+      width: casa.largura, height: casa.altura,
+      rx: 2, fill: 'url(#casaGrad)', stroke: '#00b8d4', 'stroke-width': 1.2
+    }, g);
+
+    const txt = el('text', {
+      x: casa.x + casa.largura/2,
+      y: casa.y + casa.altura/2 + 4,
+      'text-anchor':'middle',
+      'font-size': Math.min(14, Math.max(7, casa.largura*0.42)),
+      'font-weight': 700, fill: '#a8e8ff',
+      'pointer-events':'none', 'user-select':'none'
+    }, g);
+    txt.textContent = casa.numero;
+
+    casa._rect = rect;
+    casa._text = txt;
+
+    g.addEventListener('click', ev => {
+      if (dragMoved) return;
+      ev.stopPropagation();
+      selecionarCasa(casa.numero, true);
+    });
+  });
+}
+
+function desenharPortaria(){
+  camadaPortaria.innerHTML = '';
+  const p = mapa.portaria;
+
+  // Halo
+  el('rect', {
+    x: p.x - 6, y: p.y - 6, width: p.w + 12, height: p.h + 12, rx: 10,
+    fill: 'none', stroke: '#22c55e', 'stroke-width': 6, opacity: 0.4,
+    filter: 'url(#glowGreen)'
+  }, camadaPortaria);
+
+  el('rect', {
+    x: p.x, y: p.y, width: p.w, height: p.h, rx: 5,
+    fill: '#062b16', stroke: '#22c55e', 'stroke-width': 3
+  }, camadaPortaria);
+
+  el('rect', {
+    x: p.x + 4, y: p.y + 4, width: p.w - 8, height: p.h - 8, rx: 3,
+    fill: 'none', stroke: '#9dff3c', 'stroke-width': 1, opacity: 0.6
+  }, camadaPortaria);
+
+  el('circle', {
+    cx: p.centro.x, cy: p.centro.y - 6, r: 10,
+    fill: '#22c55e', stroke: '#d9ffe5', 'stroke-width': 2
+  }, camadaPortaria);
+
+  const t = el('text', {
+    x: p.centro.x, y: p.centro.y + 24,
+    'text-anchor':'middle', 'font-size': 15, 'font-weight': 800,
+    fill: '#d9ffe5', 'letter-spacing': '2'
+  }, camadaPortaria);
+  t.textContent = 'PORTARIA';
+}
+
+function desenharLabels(){
+  camadaLabels.innerHTML = '';
+}
+
+function desenharRota(pts){
+  camadaRota.innerHTML = '';
+  if (!pts || pts.length < 2) return;
+
+  const d = pts.map((p,i)=>(i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ');
+
+  el('path', {
+    d, fill:'none', stroke:'#ffb020', 'stroke-width': 20,
+    'stroke-linecap':'round','stroke-linejoin':'round',
+    opacity: 0.35, filter:'url(#glowAmber)', class:'rota-glow'
+  }, camadaRota);
+
+  el('path', {
+    d, fill:'none', stroke:'#031018', 'stroke-width': 14,
+    'stroke-linecap':'round','stroke-linejoin':'round'
+  }, camadaRota);
+
+  el('path', {
+    d, fill:'none', stroke:'#ffb020', 'stroke-width': 8,
+    'stroke-linecap':'round','stroke-linejoin':'round',
+    'marker-mid':'url(#arrowRota)', 'marker-end':'url(#arrowRota)'
+  }, camadaRota);
+
+  el('path', {
+    d, fill:'none', stroke:'#fff3c8', 'stroke-width': 2.5,
+    'stroke-linecap':'round','stroke-linejoin':'round',
+    class:'rota-flow', opacity: 0.95
+  }, camadaRota);
+
+  el('circle', {
+    cx: pts[0].x, cy: pts[0].y, r: 11,
+    fill:'#22c55e', stroke:'#d9ffe5', 'stroke-width': 3
+  }, camadaRota);
+
+  const fim = pts[pts.length-1];
+  el('circle', {
+    cx: fim.x, cy: fim.y, r: 9,
+    fill:'#ff3b30', stroke:'#fff', 'stroke-width': 3
+  }, camadaRota);
+}
+
+/* =========================================================================
+   9. INTERFACE
+   ========================================================================= */
+const campoBusca = document.getElementById('campoBusca');
+const statusEl = document.getElementById('status');
+const detalhesEl = document.getElementById('detalhes');
+const trajetoEl = document.getElementById('trajeto');
+
+function encontrarCasa(n){ return mapa.casas.find(c=>c.numero===n) || null; }
+
+function limparDestaques(){
+  mapa.casas.forEach(c=>{
+    if (c._rect){
+      c._rect.setAttribute('fill', 'url(#casaGrad)');
+      c._rect.setAttribute('stroke', '#00b8d4');
+      c._rect.setAttribute('stroke-width', 1.2);
+    }
+    if (c._text) c._text.setAttribute('fill', '#a8e8ff');
+  });
+  casaSelecionada = null;
+}
+
+function destacarCasa(casa){
+  limparDestaques();
+  if (!casa) return;
+  casa._rect.setAttribute('fill', '#3a2a03');
+  casa._rect.setAttribute('stroke', '#ffb020');
+  casa._rect.setAttribute('stroke-width', 2.5);
+  casa._text.setAttribute('fill', '#ffd970');
+  casaSelecionada = casa;
+}
+
+function comprimentoRota(pts){
+  let t = 0;
+  for (let i=0; i<pts.length-1; i++) t += Math.hypot(pts[i+1].x-pts[i].x, pts[i+1].y-pts[i].y);
+  return t;
+}
+
+function mostrarErro(msg){ statusEl.textContent = msg; statusEl.className = 'status err'; }
+
+function selecionarCasa(numero, atualizarCampo){
+  const casa = encontrarCasa(numero);
+  if (!casa){
+    mostrarErro('Casa não encontrada.');
+    camadaRota.innerHTML = '';
+    limparDestaques();
+    trajetoEl.textContent = 'Nenhuma rota calculada.';
+    return;
+  }
+  if (atualizarCampo) campoBusca.value = casa.numero;
+  destacarCasa(casa);
+
+  const rota = calcularRota(casa);
+  if (!rota){
+    statusEl.textContent = 'Rota inválida';
+    statusEl.className = 'status err';
+    camadaRota.innerHTML = '';
+    detalhesEl.innerHTML =
+      '<div class="linha"><span>Origem</span><b>PORTARIA</b></div>' +
+      '<div class="linha"><span>Destino</span><b>CASA ' + casa.numero + '</b></div>' +
+      '<div class="linha"><span>Comprimento</span><b>—</b></div>' +
+      '<div class="linha"><span>Status</span><b>SEM ROTA VÁLIDA</b></div>';
+    trajetoEl.textContent = 'NÃO FOI POSSÍVEL ENCONTRAR UMA ROTA VÁLIDA.';
+    return;
+  }
+
+  desenharRota(rota);
+  const comp = comprimentoRota(rota) * METROS_POR_UNIDADE;
+
+  statusEl.textContent = '◆ Rota Encontrada ◆';
+  statusEl.className = 'status ok';
+
+  detalhesEl.innerHTML =
+    '<div class="linha"><span>Origem</span><b>PORTARIA</b></div>' +
+    '<div class="linha"><span>Destino</span><b>CASA ' + casa.numero + '</b></div>' +
+    '<div class="linha"><span>Comprimento</span><b>' + comp.toFixed(0) + ' unidades</b></div>' +
+    '<div class="linha"><span>Status</span><b>ROTA ENCONTRADA</b></div>';
+
+  trajetoEl.innerHTML = '<span class="r">PORTARIA</span> → <span class="r">SAÍDA</span> → <span class="r">RUA</span> → <span class="r">ACESSO CASA ' + casa.numero + '</span>';
+}
+
+function limparRota(){
+  camadaRota.innerHTML = '';
+  limparDestaques();
+  statusEl.textContent = 'Aguardando destino...';
+  statusEl.className = 'status';
+  detalhesEl.innerHTML =
+    '<div class="linha"><span>Origem</span><b>PORTARIA</b></div>' +
+    '<div class="linha"><span>Destino</span><b>—</b></div>' +
+    '<div class="linha"><span>Comprimento</span><b>—</b></div>' +
+    '<div class="linha"><span>Status</span><b>—</b></div>';
+  trajetoEl.textContent = 'Nenhuma rota calculada.';
+  campoBusca.value = '';
+}
+
+function executarBusca(){
+  const raw = campoBusca.value.trim();
+  if (raw === ''){ mostrarErro('Digite o número da casa.'); return; }
+  if (!/^\d+$/.test(raw)){ mostrarErro('Digite apenas o número da casa.'); return; }
+  selecionarCasa(parseInt(raw,10), false);
+}
+
+document.getElementById('btnRota').addEventListener('click', executarBusca);
+document.getElementById('btnLimpar').addEventListener('click', limparRota);
+campoBusca.addEventListener('keydown', e=>{ if (e.key==='Enter'){ e.preventDefault(); executarBusca(); } });
+
+/* =========================================================================
+   10. ZOOM / PAN
+   ========================================================================= */
+let view = { x:0, y:0, k:1 };
+function aplicarView(){ viewport.setAttribute('transform','translate('+view.x+' '+view.y+') scale('+view.k+')'); }
+function svgPoint(cx, cy){
+  const p = svg.createSVGPoint(); p.x = cx; p.y = cy;
+  return p.matrixTransform(svg.getScreenCTM().inverse());
+}
+function zoomEm(cx, cy, f){
+  const loc = svgPoint(cx, cy);
+  const nk = Math.min(10, Math.max(0.15, view.k * f));
+  const r = nk / view.k;
+  view.x = loc.x - (loc.x - view.x) * r;
+  view.y = loc.y - (loc.y - view.y) * r;
+  view.k = nk;
+  aplicarView();
+}
+function resetMapa(){ view = { x:0, y:0, k:1 }; aplicarView(); }
+
+svg.addEventListener('wheel', e=>{ e.preventDefault(); zoomEm(e.clientX, e.clientY, e.deltaY < 0 ? 1.18 : 1/1.18); }, { passive: false });
+document.getElementById('btnZoomIn').addEventListener('click', ()=>{ const b = svg.getBoundingClientRect(); zoomEm(b.left+b.width/2, b.top+b.height/2, 1.25); });
+document.getElementById('btnZoomOut').addEventListener('click', ()=>{ const b = svg.getBoundingClientRect(); zoomEm(b.left+b.width/2, b.top+b.height/2, 1/1.25); });
+document.getElementById('btnZoomReset').addEventListener('click', resetMapa);
+
+const ptrs = new Map();
+let panRef = null, pinchRef = null, dragMoved = false;
+
+function pDist(){ const a = [...ptrs.values()]; return Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y); }
+function pMid(){ const a = [...ptrs.values()]; return { x:(a[0].x+a[1].x)/2, y:(a[0].y+a[1].y)/2 }; }
+
+svg.addEventListener('pointerdown', e=>{
+  try{ svg.setPointerCapture(e.pointerId); }catch(_){}
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  dragMoved = false;
+  if (ptrs.size === 1){
+    panRef = svgPoint(e.clientX, e.clientY);
+    pinchRef = null;
+    svg.classList.add('dragging');
+  } else if (ptrs.size === 2){
+    panRef = null;
+    const mid = pMid();
+    pinchRef = { dist: pDist(), k: view.k, vx: view.x, vy: view.y, loc: svgPoint(mid.x, mid.y) };
+  }
+});
+
+svg.addEventListener('pointermove', e=>{
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size === 1 && panRef){
+    const p = svgPoint(e.clientX, e.clientY);
+    const dx = p.x - panRef.x, dy = p.y - panRef.y;
+    if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.4) dragMoved = true;
+    view.x += dx; view.y += dy;
+    panRef = p; aplicarView();
+  } else if (ptrs.size === 2 && pinchRef){
+    const d = pDist();
+    if (pinchRef.dist <= 0) return;
+    const nk = Math.min(10, Math.max(0.15, pinchRef.k * (d/pinchRef.dist)));
+    const r = nk / pinchRef.k;
+    const loc = pinchRef.loc;
+    view.x = loc.x - (loc.x - pinchRef.vx) * r;
+    view.y = loc.y - (loc.y - pinchRef.vy) * r;
+    view.k = nk; dragMoved = true; aplicarView();
+  }
+});
+
+function soltarPonteiro(e){
+  ptrs.delete(e.pointerId);
+  try{ svg.releasePointerCapture(e.pointerId); }catch(_){}
+  if (ptrs.size === 0){ panRef = null; pinchRef = null; svg.classList.remove('dragging'); }
+  else if (ptrs.size === 1){ const f = [...ptrs.values()][0]; panRef = svgPoint(f.x, f.y); pinchRef = null; }
+}
+svg.addEventListener('pointerup', soltarPonteiro);
+svg.addEventListener('pointercancel', soltarPonteiro);
+svg.addEventListener('pointerleave', e=>{ if (ptrs.has(e.pointerId)) soltarPonteiro(e); });
+
+/* =========================================================================
+   11. INIT
+   ========================================================================= */
+function iniciar(){
+  const { ruas, areasLaser, portaria, casas } = extrairElementos();
+
+  mapa.ruas       = ruas;
+  mapa.areasLaser = areasLaser;
+  mapa.portaria   = portaria;
+  mapa.casas      = casas;
+
+  // Fileira 173-133 vertical na coluna AG
+  criarFileira133a173(mapa.casas);
+
+  mapa.casas.sort((a,b)=>a.numero - b.numero);
+
+  desenharFundo();
+  desenharAreasLaser();
+  desenharCasas();
+  desenharLabels();
+  desenharPortaria();
+
+  aplicarView();
+}
+
+iniciar();
+</script>
+</body>
+</html>
